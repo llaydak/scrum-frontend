@@ -6,13 +6,15 @@ import CssBaseline from "@mui/material/CssBaseline";
 import Box from "@mui/material/Box";
 import Stack from "@mui/material/Stack";
 import AppNavbar from "./components/AppNavbar";
-import Header from "./components/Header"
+import Header from "./components/Header";
 import AppTheme from "../shared-theme/AppTheme";
 import Grid from "@mui/material/Grid";
 import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
+import Container from "@mui/material/Container";
+import Chip from "@mui/material/Chip";
 
 import {
   PieChart,
@@ -42,31 +44,34 @@ const xThemeComponents = {
 };
 
 export default function Dashboard(props) {
+  // --- STATE VE VERİ İŞLEME ---
+  const [dashboardData, setDashboardData] = useState(null);
+  const [chartData, setChartData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [velocityData, setVelocityData] = useState([]);
+  const [backlogList, setBacklogList] = useState([]);
+
+  // KUTU YÜKSEKLİĞİ
+  const BOX_HEIGHT = 350; 
+
   const processVelocityData = (data) => {
     if (!data || !data.sprints || !data.velocityStatEntries) return [];
-
     const { sprints, velocityStatEntries } = data;
     const sortedSprints = sprints.sort((a, b) => a.id - b.id);
     const lastSprints = sortedSprints.slice(-3);
-    const targetSprints = lastSprints;
-    const chartData = targetSprints.map((sprint) => {
+    return lastSprints.map((sprint) => {
       const stats = velocityStatEntries[sprint.id];
-      const committed = stats?.estimated?.value || 0;
-      const completed = stats?.completed?.value || 0;
-
       return {
         name: sprint.name,
-        committed: committed,
-        completed: completed,
+        committed: stats?.estimated?.value || 0,
+        completed: stats?.completed?.value || 0,
       };
     });
-
-    return chartData;
   };
 
   const CustomTooltip = ({ active, payload }) => {
     if (active && payload && payload.length) {
-      const data = payload[0].payload; // Bizim gönderdiğimiz {name, value, totalSp} objesi
+      const data = payload[0].payload;
       return (
         <Paper sx={{ p: 1.5, border: "1px solid #ccc", boxShadow: 3 }}>
           <Typography variant="subtitle2" fontWeight="bold">
@@ -82,238 +87,144 @@ export default function Dashboard(props) {
     return null;
   };
 
-  const [dashboardData, setDashboardData] = useState(null);
-  const [chartData, setChartData] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState(null);
-  const [velocityData, setVelocityData] = useState([]);
-  const [backlogList, setBacklogList] = useState([]);
-
   useEffect(() => {
-    axios
-      .get("http://localhost:8080/velocity-greenhopper")
-      .then((response) => {
-        const processedData = processVelocityData(response.data);
-        setVelocityData(processedData);
-      })
-      .catch((error) => {
-        console.error("Velocity verisi alınamadı:", error);
-      })
-    axios
-      .get("http://localhost:8080/list-issues")
-      .then((response) => {
-        const data = response.data;
-        let calculatedTotalSP = 0;
-        setDashboardData(data);
+    axios.get("http://localhost:8080/velocity-greenhopper")
+      .then((res) => setVelocityData(processVelocityData(res.data)))
+      .catch((err) => console.error(err));
 
+    axios.get("http://localhost:8080/list-issues")
+      .then((res) => {
+        const data = res.data;
+        let calculatedTotalSP = 0;
         if (data.issueList) {
           const stats = {};
-
           data.issueList.forEach((issue) => {
             const status = issue.status || "Unknown";
-            if (!stats[status]) {
-              stats[status] = { count: 0, sp: 0 };
-            }
+            if (!stats[status]) stats[status] = { count: 0, sp: 0 };
             stats[status].count += 1;
             stats[status].sp += issue.sp || 0;
             calculatedTotalSP += issue.sp || 0;
           });
-          const formattedChartData = Object.keys(stats).map((key) => ({
+          setChartData(Object.keys(stats).map((key) => ({
             name: key,
             value: stats[key].count,
             totalSp: stats[key].sp,
-          }));
-          setChartData(formattedChartData);
+          })));
           data.totalSp = calculatedTotalSP;
         }
         setDashboardData(data);
         setLoading(false);
       })
-      .catch((error) => {
-        console.error("Veri çekilemedi:", error);
-        setLoading(false);
-      });
-      axios.get("http://localhost:8080/backlog")
-         .then(res => {
-             setBacklogList(res.data);
-         })
-         .catch(err => console.error("Backlog hatası:", err));
-        
-    axios
-      .get("http://localhost:8080/get-user")
-      .then((response) => {
-        if (response.data) {
-          const userData = response.data;
-          setUser({
-            name: userData.displayName,
-            email: userData.emailAddress,
-            avatar: userData.avatarUrls ? userData.avatarUrls["48x48"] : "",
-          });
-        }
-      })
-      .catch((error) => console.error("Kullanıcı alınamadı:", error));
+      .catch((err) => { console.error(err); setLoading(false); });
+
+    axios.get("http://localhost:8080/backlog")
+      .then((res) => setBacklogList(res.data))
+      .catch((err) => console.error(err));
   }, []);
 
-  const completionRate =
-    dashboardData?.totalSp > 0
-      ? Math.round(
-          (dashboardData.completedStoryPoints / dashboardData.totalSp) * 100,
-        )
-      : 0;
+  const completionRate = dashboardData?.totalSp > 0
+    ? Math.round((dashboardData.completedStoryPoints / dashboardData.totalSp) * 100)
+    : 0;
 
   return (
     <AppTheme {...props} themeComponents={xThemeComponents}>
       <CssBaseline enableColorScheme />
-      <Box sx={{ display: "flex" }}>
+      <Box sx={{ display: "flex", bgcolor: '#f5f7fa', minHeight: '100vh' }}>
         <AppNavbar />
 
-        {/* ANA İÇERİK ALANI */}
-        <Box
-          component="main"
-          sx={(theme) => ({
-            flexGrow: 1,
-            backgroundColor: theme.vars
-              ? `rgba(${theme.vars.palette.background.defaultChannel} / 1)`
-              : alpha(theme.palette.background.default, 1),
-            overflow: "auto",
-          })}
-        >
-          <Stack
-            spacing={2}
-            sx={{
-              alignItems: "center",
-              mx: 3,
-              pb: 5,
-              mt: { xs: 8, md: 0 },
-            }}
-          >
+        <Box component="main" sx={{ flexGrow: 1, overflow: "auto" }}>
+          <Stack spacing={2} sx={{ alignItems: "center", mx: 3, pb: 5, mt: { xs: 8, md: 0 } }}>
             <Header />
+
             {loading || !dashboardData ? (
               <Typography variant="h6">Veriler Yükleniyor...</Typography>
             ) : (
-              <Box
-                sx={{ width: "100%", maxWidth: { sm: "100%", md: "1700px" } }}
-              >
-                {/* 1. KPI KARTLARI */}
-                <Grid container spacing={3} mb={3}>
-                  <Grid item xs={12} sm={6} md={3}>
-                    <Card sx={{ height: "100%" }}>
-                      <CardContent>
-                        <Typography color="textSecondary" gutterBottom>
-                          Sprint
-                        </Typography>
-                        <Typography variant="h5" component="div">
-                          {dashboardData.sprintName}
-                        </Typography>
-                        <Typography variant="body2" color="textSecondary">
-                          {dashboardData.boardName}
-                        </Typography>
-                      </CardContent>
-                    </Card>
+              // --- DÜZELTME BURADA YAPILDI ---
+              // maxWidth="xl" yerine "lg" yaptık. 
+              // xl ~ 1536px (Çok geniş) -> lg ~ 1200px (İdeal, Derli Toplu)
+              <Container maxWidth="lg" sx={{ mt: 2 }}>
+                
+                {/* --- ÜST KISIM (3 SÜTUN) --- */}
+                <Grid container spacing={3}>
+                  
+                  {/* 1. SÜTUN: KPI KARTLARI */}
+                  <Grid item xs={12} lg={4}>
+                    <Box sx={{ height: BOX_HEIGHT }}>
+                      <Stack direction="column" spacing={2} sx={{ height: '100%' }}>
+                        
+                        {/* Üst Satır */}
+                        <Stack direction="row" spacing={2} sx={{ flex: 1 }}>
+                          {/* Sol Üst */}
+                          <Card sx={{ width: '50%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                            <CardContent>
+                              <Typography color="textSecondary" variant="caption">Aktif Sprint</Typography>
+                              <Typography variant="h6" fontWeight="bold" noWrap title={dashboardData.sprintName}>
+                                {dashboardData.sprintName}
+                              </Typography>
+                            </CardContent>
+                          </Card>
+                          {/* Sağ Üst */}
+                          <Card sx={{ width: '50%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                            <CardContent>
+                              <Typography color="textSecondary" variant="caption">Toplam SP</Typography>
+                              <Typography variant="h4" fontWeight="bold">{dashboardData.totalSp}</Typography>
+                            </CardContent>
+                          </Card>
+                        </Stack>
+
+                        {/* Alt Satır */}
+                        <Stack direction="row" spacing={2} sx={{ flex: 1 }}>
+                          {/* Sol Alt */}
+                          <Card sx={{ width: '50%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                            <CardContent>
+                              <Typography color="textSecondary" variant="caption">Task Sayısı</Typography>
+                              <Typography variant="h4" fontWeight="bold">{dashboardData.issueList.length}</Typography>
+                            </CardContent>
+                          </Card>
+                          {/* Sağ Alt */}
+                          <Card sx={{ width: '50%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                            <CardContent>
+                              <Typography color="textSecondary" variant="caption">Tamamlanan SP</Typography>
+                              <Typography variant="h4" color="success.main" fontWeight="bold">
+                                {dashboardData.completedStoryPoints}
+                                <span style={{ fontSize: '14px', color: '#666', marginLeft: '4px', fontWeight: 'normal' }}>
+                                  (%{completionRate})
+                                </span>
+                              </Typography>
+                            </CardContent>
+                          </Card>
+                        </Stack>
+
+                      </Stack>
+                    </Box>
                   </Grid>
 
-                  <Grid item xs={12} sm={6} md={3}>
-                    <Card sx={{ height: "100%" }}>
-                      <CardContent>
-                        <Typography color="textSecondary" gutterBottom>
-                          Toplam Task Sayısı
-                        </Typography>
-                        <Typography variant="h4" fontWeight="bold">
-                          {dashboardData.issueList.length}
-                        </Typography>
-                      </CardContent>
-                    </Card>
-                  </Grid>
-
-                  <Grid item xs={12} sm={4}>
-                    <Card sx={{ height: "100%" }}>
-                      <CardContent>
-                        <Typography color="textSecondary" gutterBottom>
-                          Toplam SP
-                        </Typography>
-                        <Typography variant="h4" fontWeight="bold">
-                          {dashboardData.totalSp}
-                        </Typography>
-                      </CardContent>
-                    </Card>
-                  </Grid>
-                  <Grid item xs={12} sm={4}>
-                    <Card sx={{ height: "100%" }}>
-                      <CardContent>
-                        <Typography color="textSecondary" gutterBottom>
-                          Tamamlanan SP
-                        </Typography>
-                        <Typography
-                          variant="h4"
-                          color="success.main"
-                          fontWeight="bold"
-                        >
-                          {dashboardData.completedStoryPoints}
-                          <span
-                            style={{
-                              fontSize: "16px",
-                              color: "#666",
-                              fontWeight: "normal",
-                            }}
-                          >
-                            {" "}
-                            (%{completionRate})
-                          </span>
-                        </Typography>
-                      </CardContent>
-                    </Card>
-                  </Grid>
-                </Grid>
-
-                {/* 2. GRAFİK VE TABLO */}
-                <Grid container spacing={3} mb={3}>
-                  <Grid item xs={12} md={6}>
-                    <Paper
-                      sx={{
-                        p: 2,
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: "center",
-                        height: "350px",
-                      }}
-                    >
-                      <Typography variant="h6" gutterBottom>
-                        Velocity Chart
-                      </Typography>
+                  {/* 2. SÜTUN: VELOCITY CHART */}
+                  <Grid item xs={12} md={6} lg={4}>
+                    <Paper sx={{ p: 2, display: "flex", flexDirection: "column", alignItems: "center", height: BOX_HEIGHT, justifyContent: 'center' }}>
+                      <Typography variant="h6" gutterBottom>Velocity Chart</Typography>
                       <BarChart width={300} height={250} data={velocityData}>
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="name" tick={{ fontSize: 12 }} />
                         <YAxis />
                         <Tooltip />
-                        <Legend />
-                        <Bar
-                          dataKey="committed"
-                          fill="#8884d8"
-                          name="Planlanan"
-                        />
-                        <Bar dataKey="completed" fill="#82ca9d" name="Biten" />
+                        <Legend wrapperStyle={{ paddingTop: "10px" }} />
+                        <Bar dataKey="committed" fill="#8884d8" name="Planlanan" radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="completed" fill="#82ca9d" name="Biten" radius={[4, 4, 0, 0]} />
                       </BarChart>
                     </Paper>
                   </Grid>
 
-                  <Grid item xs={12} md={6}>
-                    <Paper
-                      sx={{
-                        p: 2,
-                        height: "350px",
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: "center",
-                      }}
-                    >
-                      <Typography variant="h6" gutterBottom>
-                        Issue Status Distribution
-                      </Typography>
+                  {/* 3. SÜTUN: PIE CHART */}
+                  <Grid item xs={12} md={6} lg={4}>
+                    <Paper sx={{ p: 2, display: "flex", flexDirection: "column", alignItems: "center", height: BOX_HEIGHT, justifyContent: 'center' }}>
+                      <Typography variant="h6" gutterBottom>Issue Distribution</Typography>
                       <PieChart width={300} height={250}>
                         <Pie
                           data={chartData}
                           cx="50%"
                           cy="50%"
+                          innerRadius={60}
                           outerRadius={80}
                           fill="#8884d8"
                           dataKey="value"
@@ -321,43 +232,31 @@ export default function Dashboard(props) {
                           label
                         >
                           {chartData.map((entry, index) => (
-                            <Cell
-                              key={`cell-${index}`}
-                              fill={
-                                ["#0088FE", "#00C49F", "#FFBB28"][index % 3]
-                              }
-                            />
+                            <Cell key={`cell-${index}`} fill={["#0088FE", "#00C49F", "#FFBB28", "#FF8042"][index % 4]} />
                           ))}
                         </Pie>
                         <Tooltip content={<CustomTooltip />} />
-                        <Legend />
+                        <Legend wrapperStyle={{ paddingTop: "10px" }} />
                       </PieChart>
                     </Paper>
                   </Grid>
+                </Grid>
 
-                  {/* SAĞ: DETAY TABLOSU */}
-                  <Grid item xs={12} md={12}>
-                    <Paper sx={{ p: 2, height: "100%", overflow: "hidden" }}>
+                {/* --- ALT KISIM: TABLOLAR --- */}
+                {/* Burası Container "lg" olduğu için artık ekranın tamamına yayılmayacak, ortalı duracak */}
+                <Grid container spacing={3} sx={{ mt: 1 }}>
+                  
+                  {/* SPRINT ISSUE LIST */}
+                  <Grid item xs={12}>
+                    <Paper sx={{ p: 2, overflow: "hidden" }}>
                       <Typography variant="h6" gutterBottom>
-                        Sprint Issue List
+                        Sprint Issue List ({dashboardData.issueList.length})
                       </Typography>
                       <div style={{ overflowX: "auto" }}>
-                        <table
-                          style={{
-                            width: "100%",
-                            borderCollapse: "collapse",
-                            fontSize: "14px",
-                            tableLayout: "fixed",
-                          }}
-                        >
+                        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "14px", tableLayout: "fixed" }}>
                           <thead>
-                            <tr
-                              style={{
-                                borderBottom: "2px solid #eee",
-                                textAlign: "left",
-                              }}
-                            >
-                              <th style={{ padding: "10px",width: "15%" }}>Key</th>
+                            <tr style={{ borderBottom: "2px solid #eee", textAlign: "left" }}>
+                              <th style={{ padding: "10px", width: "15%" }}>Key</th>
                               <th style={{ padding: "10px", width: "55%" }}>Summary</th>
                               <th style={{ padding: "10px", width: "15%" }}>Assignee</th>
                               <th style={{ padding: "10px", width: "10%" }}>Status</th>
@@ -366,57 +265,22 @@ export default function Dashboard(props) {
                           </thead>
                           <tbody>
                             {dashboardData.issueList.map((issue) => (
-                              <tr
-                                key={issue.key}
-                                style={{ borderBottom: "1px solid #f0f0f0" }}
-                              >
-                                <td
-                                  style={{
-                                    padding: "10px",
-                                    color: "#1976d2",
-                                    fontWeight: "bold",
-
-                                  }}
-                                >
-                                  {issue.key}
-                                </td>
+                              <tr key={issue.key} style={{ borderBottom: "1px solid #f0f0f0" }}>
+                                <td style={{ padding: "10px", color: "#1976d2", fontWeight: "bold" }}>{issue.key}</td>
+                                <td style={{ padding: "10px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{issue.summary}</td>
+                                <td style={{ padding: "10px" }}>{issue.assignee || "-"}</td>
                                 <td style={{ padding: "10px" }}>
-                                  {issue.summary}
-                                </td>
-                                <td style={{ padding: "10px"}}>
-                                  {issue.assignee || "-"}
-                                </td>
-                                <td style={{ padding: "10px" }}>
-                                  <span
-                                    style={{
-                                      padding: "4px 8px",
-                                      borderRadius: "4px",
-                                      backgroundColor: issue.status
-                                        .toLowerCase()
-                                        .includes("done")
-                                        ? "#e8f5e9"
-                                        : "#e3f2fd",
-                                      color: issue.status
-                                        .toLowerCase()
-                                        .includes("done")
-                                        ? "#2e7d32"
-                                        : "#1565c0",
-                                      fontSize: "12px",
-                                      fontWeight: "bold",
+                                  <Chip 
+                                    label={issue.status} 
+                                    size="small" 
+                                    sx={{ 
+                                      bgcolor: issue.status.toLowerCase().includes("done") ? "#e8f5e9" : "#e3f2fd",
+                                      color: issue.status.toLowerCase().includes("done") ? "#2e7d32" : "#1565c0",
+                                      fontWeight: "bold", fontSize: "12px"
                                     }}
-                                  >
-                                    {issue.status}
-                                  </span>
+                                  />
                                 </td>
-                                <td
-                                  style={{
-                                    padding: "10px",
-                                    fontWeight: "bold",
-
-                                  }}
-                                >
-                                  {issue.sp}
-                                </td>
+                                <td style={{ padding: "10px", fontWeight: "bold" }}>{issue.sp}</td>
                               </tr>
                             ))}
                           </tbody>
@@ -424,30 +288,17 @@ export default function Dashboard(props) {
                       </div>
                     </Paper>
                   </Grid>
-                  
-                   <Grid item xs={12} md={12} sx={{ mt: 4 }}>
-                    <Paper sx={{ p: 2, height: "100%", overflow: "hidden" }}>
+
+                  {/* BACKLOG LIST */}
+                  <Grid item xs={12}>
+                    <Paper sx={{ p: 2, overflow: "hidden" }}>
                       <Typography variant="h6" gutterBottom>
                         Backlog ({backlogList.length})
                       </Typography>
-                      
                       <div style={{ overflowX: "auto" }}>
-                        <table
-                          style={{
-                            width: "100%",
-                            borderCollapse: "collapse",
-                            fontSize: "14px",
-                            tableLayout: "fixed",
-                          }}
-                        >
+                        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "14px", tableLayout: "fixed" }}>
                           <thead>
-                            <tr
-                              style={{
-                                borderBottom: "2px solid #eee",
-                                textAlign: "left",
-                              }}
-                            >
-                    
+                            <tr style={{ borderBottom: "2px solid #eee", textAlign: "left" }}>
                               <th style={{ padding: "10px", width: "20%" }}>Key</th>
                               <th style={{ padding: "10px", width: "60%" }}>Summary</th>
                               <th style={{ padding: "10px", width: "20%" }}>Status</th>
@@ -457,67 +308,34 @@ export default function Dashboard(props) {
                             {backlogList.length > 0 ? (
                               backlogList.map((issue) => {
                                 const fields = issue.fields || {};
-                                
                                 return (
-                                  <tr
-                                    key={issue.id}
-                                    style={{ borderBottom: "1px solid #f0f0f0" }}
-                                  >
-                                    <td
-                                      style={{
-                                        padding: "10px",
-                                        color: "#1976d2",
-                                        fontWeight: "bold",
-                                      }}
-                                    >
-                                      {issue.key}
-                                    </td>
-
+                                  <tr key={issue.id} style={{ borderBottom: "1px solid #f0f0f0" }}>
+                                    <td style={{ padding: "10px", color: "#1976d2", fontWeight: "bold" }}>{issue.key}</td>
+                                    <td style={{ padding: "10px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{fields.summary}</td>
                                     <td style={{ padding: "10px" }}>
-                                      {fields.summary}
-                                    </td>
-
-                                    <td style={{ padding: "10px" }}>
-                                      <span
-                                        style={{
-                                          padding: "4px 8px",
-                                          borderRadius: "4px",
-                                          backgroundColor: fields.status?.name
-                                            ?.toLowerCase()
-                                            .includes("done")
-                                            ? "#e8f5e9"
-                                            : "#e3f2fd",
-                                          color: fields.status?.name
-                                            ?.toLowerCase()
-                                            .includes("done")
-                                            ? "#2e7d32"
-                                            : "#1565c0",
-                                          fontSize: "12px",
-                                          fontWeight: "bold",
+                                      <Chip 
+                                        label={fields.status?.name || "To Do"}
+                                        size="small"
+                                        sx={{ 
+                                            bgcolor: fields.status?.name?.toLowerCase().includes("done") ? "#e8f5e9" : "#e3f2fd",
+                                            color: fields.status?.name?.toLowerCase().includes("done") ? "#2e7d32" : "#1565c0",
+                                            fontWeight: "bold", fontSize: "12px"
                                         }}
-                                      >
-                                        {fields.status?.name || "To Do"}
-                                      </span>
+                                      />
                                     </td>
                                   </tr>
                                 );
                               })
                             ) : (
-                              <tr>
-                                  <td colSpan={3} style={{ padding: "20px", textAlign: "center", color: "#999" }}>
-                                      Backlog boş.
-                                  </td>
-                              </tr>
+                              <tr><td colSpan={3} style={{ padding: "20px", textAlign: "center", color: "#999" }}>Backlog boş.</td></tr>
                             )}
                           </tbody>
                         </table>
                       </div>
                     </Paper>
                   </Grid>
-                  
-              
                 </Grid>
-              </Box>
+              </Container>
             )}
           </Stack>
         </Box>
