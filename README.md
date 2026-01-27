@@ -1,70 +1,58 @@
-# Getting Started with Create React App
+# Jira Dashboard Client
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+This project is a React application developed to visualize Jira sprint data. It consumes data from backend services (Spring Boot) to present KPI cards, charts, and detailed tables to the user.
 
-## Available Scripts
+## Technology Stack
 
-In the project directory, you can run:
+The project is built upon the following core libraries and technologies:
 
-### `npm start`
+* **React:** User interface library.
+* **Material UI (MUI):** Design system and component library (Grid, Card, Table, etc.).
+* **Recharts:** Data visualization library for Velocity and distribution charts.
+* **Axios:** HTTP client for backend API requests.
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+## Prerequisites
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+Ensure that the following are installed on your computer before running the project:
 
-### `npm test`
+* Node.js (v14 or higher recommended)
+* npm
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+## Installation and Setup
 
-### `npm run build`
+Follow the steps below to run the project in your local environment:
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+1.  **Install Dependencies:**
+    Open a terminal in the project directory and install the required packages.
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+    ```bash
+    npm install
+    ```
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+2.  **Start the Application:**
+    To start the development server:
 
-### `npm run eject`
+    ```bash
+    npm start
+    ```
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+    The application will run at `http://localhost:3000` by default.
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+## Backend Connection
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+This application makes requests to a backend service running at `http://localhost:8080` by default. The backend service must be up and running for data to display correctly.
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+Endpoints used:
+* `/velocity-greenhopper`: Velocity chart data.
+* `/list-issues`: Task list and statistics within the sprint.
+* `/backlog`: Backlog list.
+* `/get-user`: User information.
 
-## Learn More
+## Features
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+* **KPI Cards:** Info cards arranged in a 2x2 grid showing the active sprint name, total story points, task count, and completed story points.
+* **Velocity Chart:** Sprint-based comparison of committed vs. completed work.
+* **Issue Distribution:** Distribution of issues based on their status.
+* **Sprint Issue List:** Detailed list of issues in the current sprint (Status, Assignee, SP).
+* **Backlog List:** List of issues not yet assigned to a sprint.
+* **Responsive Design:** Flexible layout adaptable to different screen sizes (Container and Grid structure).

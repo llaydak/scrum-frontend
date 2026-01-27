@@ -1,4 +1,3 @@
-import React from 'react';
 import Dashboard from './dashboard/Dashboard.js'; 
 
 function App() {
