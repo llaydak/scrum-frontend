@@ -1,7 +1,7 @@
 import * as React from 'react';
 import PropTypes from 'prop-types';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
-
+import CssBaseline from '@mui/material/CssBaseline';
 import { inputsCustomizations } from './customizations/inputs';
 import { dataDisplayCustomizations } from './customizations/dataDisplay';
 import { navigationCustomizations } from './customizations/navigation';
@@ -37,6 +37,7 @@ function AppTheme(props) {
   }
   return (
     <ThemeProvider theme={theme} disableTransitionOnChange>
+      <CssBaseline />
       {children}
     </ThemeProvider>
   );
