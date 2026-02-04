@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import CssBaseline from "@mui/material/CssBaseline";
 import Box from "@mui/material/Box";
@@ -16,6 +16,7 @@ import Accordion from "@mui/material/Accordion";
 import AccordionSummary from "@mui/material/AccordionSummary";
 import AccordionDetails from "@mui/material/AccordionDetails";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import html2canvas from "html2canvas";
 
 import {
   PieChart,
@@ -37,6 +38,7 @@ export default function Dashboard(props) {
   const [velocityData, setVelocityData] = useState([]);
   const [backlogList, setBacklogList] = useState([]);
   const BOX_HEIGHT = 350;
+  const reportSentRef = useRef(false);
 
   const completionRate =
     dashboardData?.totalSp > 0
@@ -78,6 +80,46 @@ export default function Dashboard(props) {
     return null;
   };
 
+
+  useEffect(() => {
+    if (loading || !dashboardData) return;
+    if (reportSentRef.current) return;
+    const queryParams = new URLSearchParams(window.location.search);
+    const isAutoMode = queryParams.get('mod') === 'otomatik';
+    if (!isAutoMode) {
+      return;
+    }
+    const autoSendReport = async () => {
+      try {
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+        const dashboardElement = document.getElementById("dashboard");
+        if (!dashboardElement) {
+          console.error("Dashboard element not found");
+          return;
+        }
+        const canvas = await html2canvas(dashboardElement, {
+          scale: 2,
+          useCORS: true,
+          scrollY: -window.scrollY,
+          windowWidth: document.documentElement.offsetWidth,
+          windowHeight: document.documentElement.offsetHeight
+        });
+        const imageData = canvas.toDataURL("image/png");
+        const base64Content =imageData.split(',')[1];
+        await axios.post("http://localhost:8080/report-base64", {
+          image: base64Content,
+          recipients: ["ilaaydakdag@gmail.com"],
+          subject: "Automated Sprint Report"
+        });
+
+        reportSentRef.current = true;
+      } catch (error) {
+        console.error("Error sending automatic report:", error);
+      }
+    };
+    autoSendReport();
+  }, [loading, dashboardData]);
+    
   useEffect(() => {
     axios
       .get("http://localhost:8080/velocity-greenhopper")
@@ -131,12 +173,11 @@ export default function Dashboard(props) {
             sx={{ alignItems: "center", mx: 3, pb: 5, mt: { xs: 8, md: 0 } }}
           >
             <Header />
-
             {loading || !dashboardData ? (
               <Typography variant="h6">Loading..</Typography>
             ) : (
               // maxWidth=xl yerine lg
-              <Container maxWidth="lg" sx={{ mt: 2 }}>
+              <Container maxWidth="lg" sx={{ mt: 2 }} id="dashboard">
                 <Grid container spacing={3} justifyContent="center">
                   <Grid item xs={12} lg={4} md={6}>
                     <Box sx={{ height: BOX_HEIGHT }}>
@@ -289,8 +330,8 @@ export default function Dashboard(props) {
                             <Cell
                               key={`cell-${index}`}
                               fill={
-                                ["#0088FE", "#00C49F", "#FFBB28"][
-                                  index % 3
+                                ["#0088FE", "#00C49F", "#FFBB28", "#c5a9f4"][
+                                  index % 4
                                 ]
                               }
                             />
