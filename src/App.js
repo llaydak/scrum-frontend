@@ -1,11 +1,13 @@
-import Dashboard from './dashboard/Dashboard.js'; 
+import { Routes, Route, Navigate } from "react-router-dom";
+import Dashboard from "./dashboard/Dashboard";
+import ReportPrintPage from "./dashboard/ReportPrintPage";
 
-function App() {
+export default function App() {
   return (
-    <div className="App">
-      <Dashboard />
-    </div>
+    <Routes>
+      <Route path="/" element={<Dashboard />} />
+      <Route path="/report/print" element={<ReportPrintPage />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 }
-
-export default App;
